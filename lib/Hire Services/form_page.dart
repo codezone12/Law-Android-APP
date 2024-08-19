@@ -6,9 +6,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:law_app/Hire%20Services/pay_now_page.dart';
-import 'package:law_app/components/Email/send_email_emailjs.dart';
 import 'package:dotted_border/dotted_border.dart';
+import 'package:law_app/components/toaster.dart';
+import 'package:country_picker/country_picker.dart';
 
+// ignore: must_be_immutable
 class FormPage extends StatefulWidget {
   final String selectedCategory;
   final String selectedCategoryOption;
@@ -17,6 +19,7 @@ class FormPage extends StatefulWidget {
   final double price;
   List<String> selectedCategorySubOptionAllName;
 
+  // ignore: use_super_parameters
   FormPage({
     Key? key,
     required this.selectedCategory,
@@ -38,6 +41,7 @@ class _FormPageState extends State<FormPage> {
   final _whatsappController = TextEditingController();
   final _emailController = TextEditingController();
   final _messageController = TextEditingController();
+  final phonenumbercontroller = TextEditingController();
 
   final currentUser = FirebaseAuth.instance.currentUser;
 
@@ -45,6 +49,8 @@ class _FormPageState extends State<FormPage> {
   List<String> selectedOptions = []; // List of selected options
   String? selectedOption; // Currently selected option
   double totalPrice = 0.0;
+  Country? country;
+  bool ishireQuickly = false;
 
   bool loading = false;
 
@@ -53,6 +59,15 @@ class _FormPageState extends State<FormPage> {
   List<String> fileUrls = [];
 
   final imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+  pickcountry() {
+    showCountryPicker(
+        context: context,
+        onSelect: (Country conutry) {
+          setState(() {
+            country = conutry;
+          });
+        });
+  }
 
   Future selectFiles() async {
     final result = await FilePicker.platform.pickFiles(allowMultiple: true);
@@ -65,6 +80,9 @@ class _FormPageState extends State<FormPage> {
             .any((existingFile) => existingFile.name == file.name)) {
           pickedFiles.add(file);
         }
+        showToast(
+          message: "File Picked ${file.name}",
+        );
       }
     });
   }
@@ -83,6 +101,7 @@ class _FormPageState extends State<FormPage> {
 
       setState(() {
         uploadTasks.add(uploadTask);
+        showToast(message: "File Uploaded");
       });
 
       final snapshot = await uploadTask.whenComplete(() {});
@@ -99,10 +118,24 @@ class _FormPageState extends State<FormPage> {
   }
 
   @override
+  void dispose() {
+    // TODO: implement dispose
+    phonenumbercontroller.dispose();
+    _nameController.dispose();
+
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  @override
   void initState() {
     _whatsappController.text = currentUser?.phoneNumber ?? '';
     _emailController.text = currentUser?.email ?? '';
     totalPrice = widget.price;
+
+    ishireQuickly = (widget.selectedCategory == 'BASIC' ||
+        widget.selectedCategory == 'STANDARD' ||
+        widget.selectedCategory == 'PERMIUM');
 
     // Initialize options
     // allOptions = widget.selectedCategorySubOptionAllName;
@@ -125,10 +158,14 @@ class _FormPageState extends State<FormPage> {
         loading = true;
       });
 
+      String services =
+          '${widget.selectedCategory} - ${widget.selectedCategoryOption} - ${widget.selectedCategorySubOption} - ${widget.selectedCategorySubOptionName}';
+      //   ),
       // Create a map of the data to store
       final orderData = {
         'name': _nameController.text.trim(),
-        'whatsapp': _whatsappController.text.trim(),
+        'whatsapp':
+            ('+${country!.phoneCode}') + _whatsappController.text.trim(),
         'email': _emailController.text.trim(),
         'message': _messageController.text.trim(),
         'selectedCategory': widget.selectedCategory,
@@ -137,6 +174,8 @@ class _FormPageState extends State<FormPage> {
         'selectedCategorySubOptionName': widget.selectedCategorySubOptionName,
         'userId': currentUser?.uid,
         'status': 'in progress',
+        'subject': services,
+
         'fileUrl': fileUrls,
         'extraOption': selectedOptions,
         'totalPrice': selectedOptions.isNotEmpty
@@ -148,36 +187,39 @@ class _FormPageState extends State<FormPage> {
 
       try {
         // Store the data in Firestore
-        await FirebaseFirestore.instance.collection('orders').add(orderData);
-
+        DocumentReference reference = await FirebaseFirestore.instance
+            .collection('orders')
+            .add(orderData);
+        showToast(message: 'Submitted successfully!');
         // Show a success message or navigate
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Submitted successfully!')),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(content: Text('Submitted successfully!')
+        // );
 
         // combine services and sub services
-        String services =
-            '${widget.selectedCategory} - ${widget.selectedCategoryOption} - ${widget.selectedCategorySubOption} - ${widget.selectedCategorySubOptionName}';
 
         // send email
 
-        sendEmailUsingEmailjs(
-            name: _nameController.text,
-            email: _emailController.text,
-            subject: services,
-            message: _messageController.text,
-            services: widget.selectedCategorySubOptionName);
+        // sendEmailUsingEmailjs(
+        //     name: _nameController.text,
+        //     email: _emailController.text,
+        //     subject: services,
+        //     message: _messageController.text,
+        //     services: widget.selectedCategorySubOptionName);
 
         // Clear the form
-        _nameController.clear();
-        _whatsappController.clear();
-        _messageController.clear();
 
         // Navigate to the pay now page
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => PayNowPage(
+              docRef: reference,
+              name: _nameController.text.trim(),
+              email: _emailController.text.trim(),
+              subject: services,
+              message: _messageController.text.trim(),
+              services: widget.selectedCategorySubOptionName,
               heading: widget.selectedCategory,
               title: widget.selectedCategoryOption,
               subTitle: widget.selectedCategorySubOption,
@@ -224,54 +266,66 @@ class _FormPageState extends State<FormPage> {
                       fontSize: 15,
                     ),
                   ),
-                  const Text(
-                    ' > ',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                  Text(
-                    widget.selectedCategoryOption,
-                    style: const TextStyle(
-                      color: Colors.deepPurple,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const Text(
-                    ' > ',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                  Text(
-                    widget.selectedCategorySubOption,
-                    style: const TextStyle(
-                      color: Colors.deepPurple,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const Text(
-                    ' > ',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                  Text(
-                    widget.selectedCategorySubOptionName,
-                    style: const TextStyle(
-                      color: Colors.deepPurple,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
+                  ishireQuickly
+                      ? Text("")
+                      : const Text(
+                          ' > ',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                  ishireQuickly
+                      ? Text("")
+                      : Text(
+                          widget.selectedCategoryOption,
+                          style: const TextStyle(
+                            color: Colors.deepPurple,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                  ishireQuickly
+                      ? Text("")
+                      : const Text(
+                          ' > ',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                  ishireQuickly
+                      ? Text("")
+                      : Text(
+                          widget.selectedCategorySubOption,
+                          style: const TextStyle(
+                            color: Colors.deepPurple,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                  ishireQuickly
+                      ? Text("")
+                      : const Text(
+                          ' > ',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                  ishireQuickly
+                      ? Text("")
+                      : Text(
+                          widget.selectedCategorySubOptionName,
+                          style: const TextStyle(
+                            color: Colors.deepPurple,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
                 ],
               ),
             ),
@@ -309,10 +363,14 @@ class _FormPageState extends State<FormPage> {
                     ),
 
                     const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: pickcountry,
+                      child: const Text("Pick your country"),
+                    ),
                     TextFormField(
                       controller: _whatsappController,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         enabledBorder: UnderlineInputBorder(
                             borderSide: BorderSide(color: Color(0xFF11CEC4))),
                         focusedBorder: OutlineInputBorder(
@@ -324,6 +382,9 @@ class _FormPageState extends State<FormPage> {
                           Icons.phone,
                           color: Color(0xFF11CEC4),
                         ),
+                        prefixText: (country != null)
+                            ? "+${country!.phoneCode}  "
+                            : null,
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -331,6 +392,9 @@ class _FormPageState extends State<FormPage> {
                         }
                         if (!RegExp(r'^\+?[0-9]{10,15}$').hasMatch(value)) {
                           return 'Please enter a valid WhatsApp number';
+                        }
+                        if (country == null) {
+                          return 'Please Select your country';
                         }
                         return null;
                       },
@@ -591,7 +655,7 @@ class _FormPageState extends State<FormPage> {
                       LinearProgressIndicator(
                         value: progress,
                         backgroundColor: Colors.grey,
-                        color: Colors.green,
+                        color: const Color.fromARGB(255, 76, 167, 175),
                       ),
                       Center(
                         child: Text(

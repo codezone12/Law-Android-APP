@@ -1,9 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_slider_drawer/flutter_slider_drawer.dart';
+import 'package:law_app/Google%20meetup/google_meetup.dart';
 import 'package:law_app/Hire%20Quickly/hire_quickly.dart';
 import 'package:law_app/Hire%20Services/hire_services.dart';
 import 'package:law_app/Orders/user_orders_page.dart';
+import 'package:law_app/text_editor/text%20_editor.dart';
+
+import '../profille/profile.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -18,8 +24,8 @@ class HomePageState extends State<HomePage>
       GlobalKey<SliderDrawerState>();
   late String title;
 
-  late Widget _selectedWidget;
-  // HomePageState() : _selectedWidget = _AuthorList(); // Initialize with the widget
+  static late Widget selectedWidget;
+  // HomePageState() : selectedWidget = _AuthorList(); // Initialize with the widget
 
   late AnimationController _controller;
 
@@ -45,9 +51,8 @@ class HomePageState extends State<HomePage>
                 child: const Text("Cancel"),
               ),
               TextButton(
-                onPressed: () {
-                  signUserOut();
-                  Navigator.of(context).pop();
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
                 },
                 child: const Text("Logout"),
               ),
@@ -60,8 +65,11 @@ class HomePageState extends State<HomePage>
   void initState() {
     super.initState();
     title = "Hire Services";
-    _selectedWidget = const HireServices();
+    selectedWidget = const HireServices();
     selectedMenuItem = title;
+    // title = "Text Editor";
+    // selectedWidget = ScheduleMeeting();
+    // selectedMenuItem = title;
 
     // Initialize the AnimationController
     _controller = AnimationController(
@@ -79,62 +87,63 @@ class HomePageState extends State<HomePage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SliderDrawer(
-        appBar: const SliderAppBar(
-          appBarColor: Colors.white,
-          title: Text(
-            '',
-            style: TextStyle(
-              // fontSize: 22,
-              fontWeight: FontWeight.w700,
+    return Container(
+      color: Colors.black,
+      child: SafeArea(
+        child: Scaffold(
+          body: SliderDrawer(
+            appBar: SliderAppBar(
+              appBarHeight: 60,
+              isTitleCenter: true,
+              appBarColor: Colors.white,
+              title: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
+            key: _sliderDrawerKey,
+            sliderOpenSize: 179,
+            slider: _SliderView(
+              selectedMenuItem: selectedMenuItem,
+              onItemClick: (title) {
+                _sliderDrawerKey.currentState!.closeSlider();
+                setState(() {
+                  this.title = title;
+                  selectedMenuItem = title;
+                });
+
+                switch (title) {
+                  case 'Hire Services':
+                    selectedWidget = const HireServices();
+                    break;
+                  case 'Hire Quickly':
+                    selectedWidget = const HireQuicklyPage();
+                    break;
+                  case 'Orders':
+                    selectedWidget = const OrderPage();
+                    break;
+                  case 'ChatBot':
+                    selectedWidget = ScheduleMeeting();
+                    break;
+                  case 'Text Editor':
+                    selectedWidget = TextEditorScreen();
+                    break;
+                  case 'Profile':
+                    selectedWidget = ProfileView();
+                    break;
+                  case 'LogOut':
+                    logoutDialog(context);
+                    break;
+                }
+              },
+            ),
+            // child: _AuthorList(),
+            child: selectedWidget,
           ),
         ),
-        key: _sliderDrawerKey,
-        sliderOpenSize: 179,
-        slider: _SliderView(
-          selectedMenuItem: selectedMenuItem,
-          onItemClick: (title) {
-            _sliderDrawerKey.currentState!.closeSlider();
-            setState(() {
-              this.title = title;
-              selectedMenuItem = title;
-            });
-
-            switch (title) {
-              case 'Hire Services':
-                _selectedWidget = const HireServices();
-                break;
-              case 'Hire Quickly':
-                _selectedWidget = const HireQuicklyPage();
-                break;
-              case 'Orders':
-                _selectedWidget = const OrderPage();
-                break;
-              case 'ChatBot':
-                _selectedWidget = Center(
-                  child: Text(title),
-                );
-                break;
-              case 'Text Editor':
-                _selectedWidget = Center(
-                  child: Text(title),
-                );
-                break;
-              case 'Profile':
-                _selectedWidget = Center(
-                  child: Text(title),
-                );
-                break;
-              case 'LogOut':
-                logoutDialog(context);
-                break;
-            }
-          },
-        ),
-        // child: _AuthorList(),
-        child: _selectedWidget,
       ),
     );
   }

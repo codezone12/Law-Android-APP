@@ -2,51 +2,57 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:law_app/Hire%20Services/form_page.dart';
 
+final List products = [
+  {
+    'Type': 'BASIC',
+    'heading': 'Consumer Contracts',
+    'title': 'Travel',
+    'subTitle': 'Air Plane',
+    'option': 'Delay',
+    'price': '100',
+    'description':
+        'Compensation for flight delays, including reimbursement for expenses incurred due to the delay.',
+    'color': const Color.fromRGBO(0, 204, 204, 1.0),
+  },
+  {
+    'Type': 'STANDARD',
+    'heading': 'Consumer Contracts',
+    'title': 'Hotel',
+    'subTitle': 'Reservation',
+    'option': 'Cancelled',
+    'price': '200',
+    'description':
+        'Coverage for hotel reservation cancellations, including refunds and compensation for inconvenience.',
+    'color': const Color.fromRGBO(159, 129, 247, 1.0),
+  },
+  {
+    'Type': 'PERMIUM',
+    'heading': 'Administrative',
+    'title': 'Immigration',
+    'subTitle': 'Residence Foreigners',
+    'option': 'Inadequate compensation',
+    'price': '300',
+    'description':
+        'Legal assistance for inadequate compensation claims related to residence permits for foreigners.',
+    'color': const Color.fromRGBO(249, 171, 0, 1.0),
+  },
+];
+
 class HireQuicklyPage extends StatefulWidget {
+  // ignore: use_super_parameters
   const HireQuicklyPage({Key? key}) : super(key: key);
 
   @override
+  // ignore: library_private_types_in_public_api
   _HireQuicklyPageState createState() => _HireQuicklyPageState();
 }
 
 class _HireQuicklyPageState extends State<HireQuicklyPage> {
+  // ignore: unused_field
   int _current = 0;
   dynamic _selectedIndex = {};
 
   final CarouselController _carouselController = CarouselController();
-
-  final List _products = [
-    {
-      'heading': 'Consumer Contracts',
-      'title': 'Travel',
-      'subTitle': 'Air Plane',
-      'option': 'Delay',
-      'price': '100',
-      'description':
-          'Compensation for flight delays, including reimbursement for expenses incurred due to the delay.',
-      'color': const Color.fromRGBO(0, 204, 204, 1.0),
-    },
-    {
-      'heading': 'Consumer Contracts',
-      'title': 'Hotel',
-      'subTitle': 'Reservation',
-      'option': 'Cancelled',
-      'price': '200',
-      'description':
-          'Coverage for hotel reservation cancellations, including refunds and compensation for inconvenience.',
-      'color': const Color.fromRGBO(159, 129, 247, 1.0),
-    },
-    {
-      'heading': 'Administrative',
-      'title': 'Immigration',
-      'subTitle': 'Residence Foreigners',
-      'option': 'Inadequate compensation',
-      'price': '300',
-      'description':
-          'Legal assistance for inadequate compensation claims related to residence permits for foreigners.',
-      'color': const Color.fromRGBO(249, 171, 0, 1.0),
-    },
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -77,12 +83,12 @@ class _HireQuicklyPageState extends State<HireQuicklyPage> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
-        title: const Text(
-          'Hire Quickly',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
+        // title: const Text(
+        //   'Hire Quickly',
+        //   style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        // ),
       ),
-      body: Container(
+      body: SizedBox(
         width: double.infinity,
         height: double.infinity,
         child: CarouselSlider(
@@ -98,7 +104,7 @@ class _HireQuicklyPageState extends State<HireQuicklyPage> {
                     _current = index;
                   });
                 }),
-            items: _products.map((item) {
+            items: products.map((item) {
               return Builder(
                 builder: (BuildContext context) {
                   return GestureDetector(
@@ -116,12 +122,12 @@ class _HireQuicklyPageState extends State<HireQuicklyPage> {
                       width: MediaQuery.of(context).size.width,
                       decoration: BoxDecoration(
                           // color: item['color'],
-                          gradient: LinearGradient(
+                          gradient: const LinearGradient(
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                             colors: [
-                              Colors.orange[300]!,
-                              Colors.red[400]!,
+                              Color.fromARGB(255, 153, 206, 215),
+                              Color.fromARGB(255, 46, 188, 213),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(20),
@@ -160,7 +166,7 @@ class _HireQuicklyPageState extends State<HireQuicklyPage> {
                                     height: 20,
                                   ),
                                   Text(
-                                    item['heading'],
+                                    item['Type'],
                                     style: const TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.bold,
@@ -217,24 +223,59 @@ class _HireQuicklyPageState extends State<HireQuicklyPage> {
                                       color: Colors.white,
                                     ),
                                   ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                        left: 8, right: 8),
+                                    child: Center(
+                                      child: Text(
+                                        item['description'],
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.white,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
                             // const SizedBox(
                             //   height: 20,
                             // ),
-                            Padding(
-                              padding: const EdgeInsets.only(left: 8, right: 8),
-                              child: Center(
-                                child: Text(
-                                  item['description'],
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                            Center(
+                              child: Container(
+                                height: 50,
+                                width: 150,
+                                decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(25),
+                                    shape: BoxShape.rectangle,
+                                    color:
+                                        const Color.fromARGB(255, 4, 103, 122)),
+                                child: TextButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => FormPage(
+                                            selectedCategory: item['Type'],
+                                            selectedCategoryOption:
+                                                item['title'],
+                                            selectedCategorySubOption:
+                                                item['subTitle'],
+                                            selectedCategorySubOptionName:
+                                                item['option'],
+                                            price: double.parse(item['price']),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      "Purchase Now",
+                                      style: TextStyle(color: Colors.white),
+                                    )),
                               ),
-                            ),
+                            )
                           ],
                         ),
                       ),

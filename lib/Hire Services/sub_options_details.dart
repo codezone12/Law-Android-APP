@@ -1,3 +1,5 @@
+import 'package:delightful_toast/delight_toast.dart';
+import 'package:delightful_toast/toast/components/toast_card.dart';
 import 'package:flutter/material.dart';
 
 class SubOptionDetail extends StatelessWidget {
@@ -110,7 +112,26 @@ class SubOptionDetail extends StatelessWidget {
             padding: const EdgeInsets.all(16.0),
             child: Center(
               child: ElevatedButton(
-                onPressed: onPressed,
+                onPressed: () {
+                  onPressed?.call();
+                  DelightToastBar(
+                    builder: (context) => const ToastCard(
+                      leading: Icon(
+                        Icons.check_circle,
+                        size: 28,
+                        color: Colors.white,
+                      ),
+                      title: Text(
+                        "Action applied successfully",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ).show(context);
+                },
                 style: ButtonStyle(
                   padding: MaterialStateProperty.all(
                     const EdgeInsets.symmetric(vertical: 20, horizontal: 40),
@@ -118,7 +139,7 @@ class SubOptionDetail extends StatelessWidget {
                   backgroundColor: MaterialStateProperty.all(
                     const Color.fromARGB(255, 159, 129, 247),
                   ),
-                  shape: MaterialStateProperty.all(
+                  shape: WidgetStateProperty.all(
                     RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(40),
                     ),

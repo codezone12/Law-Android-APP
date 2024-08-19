@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:law_app/Hire%20Services/form_page.dart';
-import 'package:law_app/Hire%20Services/sub_options_details.dart';
+// ignore: depend_on_referenced_packages
 import 'package:collection/collection.dart';
 import 'package:accordion/accordion.dart';
 import 'package:custom_accordion/custom_accordion.dart';
@@ -514,40 +514,43 @@ class _HireServicesState extends State<HireServices> {
                         null; // Reset selected sub-option when changing category
                   });
                 },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 500),
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  width: selectedCategory == cat.title ? 150 : 152,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: cat.backgroundColor,
-                    border: Border.all(
-                      width: 2,
-                      color: selectedCategory == cat.title
-                          ? cat.labelColor
-                          : Colors.transparent,
+                child: Transform.scale(
+                  scale: isSelected ? 1 : 0.9,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 500),
+                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                    width: selectedCategory == cat.title ? 150 : 152,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: cat.backgroundColor,
+                      border: Border.all(
+                        width: 2,
+                        color: selectedCategory == cat.title
+                            ? cat.labelColor
+                            : Colors.transparent,
+                      ),
                     ),
-                  ),
-                  child: Transform.scale(
-                    scale: isSelected ? 1.1 : 1,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          cat.icon,
-                          color: cat.labelColor,
-                          size: 32,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          cat.title,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
+                    child: Transform.scale(
+                      scale: isSelected ? 1.1 : 1,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            cat.icon,
                             color: cat.labelColor,
+                            size: 32,
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          Text(
+                            cat.title,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: cat.labelColor,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

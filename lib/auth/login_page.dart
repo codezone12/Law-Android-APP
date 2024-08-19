@@ -1,8 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:law_app/Home/home_page.dart';
+import 'package:law_app/auth/authProviders/githubauth.dart';
 import 'package:law_app/auth/authProviders/googleAuth.dart';
+import 'package:law_app/auth/authProviders/linkedinAuth.dart';
 import 'package:law_app/auth/signup_page.dart';
+import 'package:law_app/components/toaster.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -43,27 +46,22 @@ class _LoginPageState extends State<LoginPage> {
         // Check if email is verified
         final user = FirebaseAuth.instance.currentUser;
         if (user != null && user.emailVerified) {
-          // Navigate to next screen or show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Login Successful! Welcome')),
-          );
+          // Show success toast and navigate to home page
+          showToast(message: "Login Successful! Welcome");
 
+          // ignore: use_build_context_synchronously
           Navigator.pushReplacement(context,
               MaterialPageRoute(builder: (context) => const HomePage()));
         } else {
           // Show message to verify email
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Please verify your email to log in.'),
-                backgroundColor: Colors.red),
-          );
+          showToast(message: 'Please verify your email to log in.');
 
           // Optionally, resend verification email
           try {
             await user?.sendEmailVerification();
           } catch (e) {
             // Handle errors specifically from sendEmailVerification
-            // Optionally, log this error or show a specific message
+            showToast(message: 'Failed to send verification email.');
           }
         }
       } on FirebaseAuthException catch (e) {
@@ -74,16 +72,11 @@ class _LoginPageState extends State<LoginPage> {
           errorMessage = 'Wrong password provided for that user.';
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-        );
+        showToast(message: errorMessage);
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'An unexpected error occurred. Please check credientials and try again.'),
-              backgroundColor: Colors.red),
-        );
+        showToast(
+            message:
+                'An unexpected error occurred. Please check credentials and try again.');
       } finally {
         setState(() {
           loading = false;
@@ -98,7 +91,6 @@ class _LoginPageState extends State<LoginPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // text + image
             const SizedBox(
               height: 40,
             ),
@@ -107,7 +99,6 @@ class _LoginPageState extends State<LoginPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  //text
                   const Flexible(
                     child: Text(
                       'Already have an Account?',
@@ -115,20 +106,14 @@ class _LoginPageState extends State<LoginPage> {
                           TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  // image
-
                   Image.asset('assets/images/login.png',
                       height: 200, width: 200),
                 ],
               ),
             ),
-
-            // input fields
-
             const SizedBox(
               height: 20,
             ),
-
             Form(
               key: _formKey,
               child: Column(
@@ -195,13 +180,9 @@ class _LoginPageState extends State<LoginPage> {
                       },
                     ),
                   ),
-
-                  // login button
-
                   const SizedBox(
                     height: 20,
                   ),
-
                   loading
                       ? const CircularProgressIndicator(
                           color: Color(0xFF11CEC4))
@@ -225,22 +206,14 @@ class _LoginPageState extends State<LoginPage> {
                 ],
               ),
             ),
-
-            // new user, register now cliclable text
-
             const SizedBox(
               height: 20,
             ),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 TextButton(
                   onPressed: () {
-                    // Navigator.push(
-                    //     context,
-                    //     MaterialPageRoute(
-                    //         builder: (context) => const SignupPage()));
                     Navigator.of(context).push(_createRoute());
                   },
                   child: const Text(
@@ -250,13 +223,9 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ],
             ),
-
-            // other login options, google and linkedin providers
-
             const SizedBox(
               height: 20,
             ),
-
             const Padding(
               padding: EdgeInsets.only(left: 30, right: 30),
               child: Row(
@@ -283,11 +252,9 @@ class _LoginPageState extends State<LoginPage> {
                 ],
               ),
             ),
-
             const SizedBox(
               height: 20,
             ),
-
             Row(
               children: [
                 Expanded(
@@ -301,23 +268,51 @@ class _LoginPageState extends State<LoginPage> {
                         child: Image.asset('assets/images/google.png',
                             height: 50, width: 50),
                       ),
-                      // const SizedBox(
-                      //   width: 20,
-                      // ),
-                      // Image.asset(
-                      //   'assets/images/linkedin.png',
-                      //   height: 50,
-                      //   width: 50,
-                      // ),
+                      const SizedBox(
+                        width: 20,
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const LinkedInDemoPage()),
+                          );
+                        },
+                        child: Image.asset('assets/images/linkedin.png',
+                            height: 50, width: 50),
+                      ),
+                      GestureDetector(
+                        onTap: () async {
+                          try {
+                            UserCredential userCredential =
+                                await signin_withgithub();
+                            // if (context.mounted) {
+                            //   Navigator.push(
+                            //       context,
+                            //       MaterialPageRoute(
+                            //           builder: (context) => HomePage()));
+                            // }
+                            // ignore: unnecessary_null_comparison
+                            if (userCredential != null) {
+                              Navigator.push(
+                                  // ignore: use_build_context_synchronously
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => const HomePage()));
+                            }
+                          } catch (e) {
+                            showToast(message: e.toString());
+                          }
+                        },
+                        child: Image.asset('assets/images/github.png',
+                            height: 50, width: 50),
+                      ),
                     ],
                   ),
                 ),
                 GestureDetector(
                   onTap: () {
-                    // Navigator.push(
-                    //     context,
-                    //     MaterialPageRoute(
-                    //         builder: (context) => const SignupPage()));
                     Navigator.of(context).push(_createRoute());
                   },
                   child: Container(
@@ -329,10 +324,8 @@ class _LoginPageState extends State<LoginPage> {
                           topLeft: Radius.circular(100),
                           bottomLeft: Radius.circular(100)),
                     ),
-                    child: const Icon(
-                      Icons.add,
-                      color: Colors.white,
-                    ),
+                    child: const Icon(Icons.arrow_forward,
+                        size: 40, color: Colors.white),
                   ),
                 ),
               ],

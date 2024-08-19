@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:law_app/Home/home_page.dart';
+import 'package:law_app/components/toaster.dart';
 
 class EmailVerificationPage extends StatefulWidget {
   const EmailVerificationPage({super.key});
@@ -18,14 +19,20 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     super.initState();
     // Start the timer
     timer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      // Reload the user
-      await FirebaseAuth.instance.currentUser?.reload();
-      var user = FirebaseAuth.instance.currentUser;
-      // Check if email is verified
-      if (user != null && user.emailVerified) {
-        timer.cancel();
-        Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const HomePage()));
+      try {
+        // Reload the user
+        await FirebaseAuth.instance.currentUser?.reload();
+        var user = FirebaseAuth.instance.currentUser;
+        // Check if email is verified
+        if (user != null && user.emailVerified) {
+          timer.cancel();
+          showToast(message: "Email successfully verified!");
+          Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const HomePage()));
+        }
+      } catch (e) {
+        // Handle reload user errors
+        showToast(message: "Failed to reload user. Please try again later.");
       }
     });
   }
