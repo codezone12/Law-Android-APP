@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_email_sender/flutter_email_sender.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -9,14 +12,17 @@ import 'package:flutter/material.dart';
 import 'package:googleapis/androidenterprise/v1.dart';
 import 'package:law_app/Hire%20Quickly/hire_quickly.dart';
 import 'package:law_app/components/Email/send_email_emailjs.dart';
+import 'package:law_app/components/common/gen_qr_ode.dart';
 import 'package:law_app/components/common/uploadtask.dart';
 import 'package:law_app/components/toaster.dart';
 import 'package:law_app/receipt/model/customer.dart';
 import 'package:law_app/receipt/model/invoice.dart';
 import 'package:law_app/receipt/model/supplier.dart';
 import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import '../receipt/api/pdf_api.dart';
 import '../receipt/api/pdf_invoice_api.dart';
@@ -79,6 +85,15 @@ class _PayNowPageState extends State<PayNowPage> {
   late File pdfFile;
 
   bool isPaid = false;
+    final GlobalKey _qrkey = GlobalKey();
+
+  String? receipt;
+  
+  
+  
+  var qrdata ="www.mstips.org";
+  
+  String? link;
 
   @override
   void initState() {
@@ -102,6 +117,40 @@ class _PayNowPageState extends State<PayNowPage> {
         ),
       );
       displayPaymentSheet();
+
+      await pdfgent();
+      
+     receipt =
+        await storeToFirebase(pdfFile, "receipts/${widget.docRef.id}");
+        setState(() {
+          qrdata=receipt!;
+        });
+      await  _captureAndSavePng();
+  await  updateOrderStatus(widget.docRef.id,receipt!,link);
+    
+
+   await sendEmailUsingEmailjs(
+        isadmin: true,
+
+        ///sending to admin
+        name: widget.name,
+        email: widget.email,
+        subject: widget.subject,
+        message: widget.message,
+        pdf: receipt!,qrcode:link);
+
+   await sendEmailUsingEmailjs(
+        isadmin: false,
+
+        ///sending to customer
+        name: widget.name,
+        email: widget.email,
+        subject: widget.subject,
+        message: widget.message,
+        pdf: receipt!,qrcode:link);
+
+  
+
     } catch (e) {
       print('Error in makePayment: $e');
       Fluttertoast.showToast(
@@ -115,8 +164,42 @@ class _PayNowPageState extends State<PayNowPage> {
     }
   }
 
+  Future<void> _captureAndSavePng() async {
+    try{
+      RenderRepaintBoundary boundary = _qrkey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      var image = await boundary.toImage(pixelRatio: 3.0);
+
+      //Drawing White Background because Qr Code is Black
+      final whitePaint = Paint()..color = Colors.white;
+      final recorder = PictureRecorder();
+      final canvas = Canvas(recorder,Rect.fromLTWH(0,0,image.width.toDouble(),image.height.toDouble()));
+      canvas.drawRect(Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()), whitePaint);
+      canvas.drawImage(image, Offset.zero, Paint());
+      final picture = recorder.endRecording();
+      final img = await picture.toImage(image.width, image.height);
+      ByteData? byteData = await img.toByteData(format: ImageByteFormat.png);
+      Uint8List pngBytes = byteData!.buffer.asUint8List();
+
+      final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/qrcode.png');
+
+    await file.writeAsBytes(pngBytes);
+
+      
+  link =
+   await storeToFirebase(file, "receiptQr/${widget.docRef.id}");
+      
+
+    }catch(e){
+      if(!mounted)return;
+      const snackBar = SnackBar(content: Text('Something went wrong!!!'));
+      ScaffoldMessenger.of(context).showSnackBar(snackBar);
+    }
+  }
+
+
   Future<void> displayPaymentSheet() async {
-    // try {
+    try {
     await Stripe.instance.presentPaymentSheet();
     setState(() {
       paymentIntentData = null;
@@ -129,74 +212,18 @@ class _PayNowPageState extends State<PayNowPage> {
       textColor: Colors.white,
       fontSize: 16.0,
     );
-    await pdfgent();
-    final receipt =
-        await storeToFirebase(pdfFile, "receipts/${widget.docRef.id}");
-    updateOrderStatus(widget.docRef.id,"receipts/${widget.docRef.id}");
-    // Use
-    // try {
-    //   final Email email = Email(
-    //     body: 'Email body',
-    //     subject: widget.subject,
-    //     recipients: [widget.email],
-    //     cc: ['cc@example.com'],
-    //     bcc: ['bcc@example.com'],
-    //     attachmentPaths: [pdfFile.path],
-    //     isHTML: false,
-    //   );
-
-    //   await FlutterEmailSender.send(email);
-    // } catch (e) {
-    //   showToast(message: "$e this scenod eamil");
-    // }
-
-    sendEmailUsingEmailjs(
-        isadmin: true,
-
-        ///sending to admin
-        name: widget.name,
-        email: widget.email,
-        subject: widget.subject,
-        message: widget.message,
-        pdf: receipt!);
-
-    sendEmailUsingEmailjs(
-        isadmin: false,
-
-        ///sending to customer
-        name: widget.name,
-        email: widget.email,
-        subject: widget.subject,
-        message: widget.message,
-        pdf: receipt);
-
-    // sendEmailUsingEmailjs(
-    //     name: _nameController.text,
-    //     email: _emailController.text,
-    //     subject: services,
-    //     message: _messageController.text,
-    //     services: widget.selectedCategorySubOptionName);
-    // } on StripeException catch (e) {
-    //   print('StripeException: $e');
-    //   Fluttertoast.showToast(
-    //     msg: "Payment failed",
-    //     toastLength: Toast.LENGTH_SHORT,
-    //     gravity: ToastGravity.BOTTOM,
-    //     backgroundColor: Colors.red,
-    //     textColor: Colors.white,
-    //     fontSize: 16.0,
-    //   );
-    // } catch (e) {
-    //   print('Exception: $e');
-    //   Fluttertoast.showToast(
-    //     msg: "Payment failed",
-    //     toastLength: Toast.LENGTH_SHORT,
-    //     gravity: ToastGravity.BOTTOM,
-    //     backgroundColor: Colors.red,
-    //     textColor: Colors.white,
-    //     fontSize: 16.0,
-    //   );
-    // }
+    
+    } catch (e) {
+      print('Exception: $e');
+      Fluttertoast.showToast(
+        msg: "Payment failed",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    }
   }
 
   Future<Map<String, dynamic>> createPaymentIntent(
@@ -223,7 +250,7 @@ class _PayNowPageState extends State<PayNowPage> {
     }
   }
 
-  Future<void> updateOrderStatus(String reference,String url) async {
+  Future<void> updateOrderStatus(String reference,String url,qrcodelink) async {
     try {
       await FirebaseFirestore.instance
           .collection('orders') // The name of your collection
@@ -231,7 +258,8 @@ class _PayNowPageState extends State<PayNowPage> {
               reference) // The specific document ID (reference) you want to update
           .update({
         'status': 'completed',
-        'receipturl':url // The field you want to update
+        'receipturl':url ,// The field you want to update
+        'r_qrcode_link':qrcodelink
       });
 
       print('Order status updated successfully.');
@@ -244,96 +272,6 @@ class _PayNowPageState extends State<PayNowPage> {
     final calculatedAmount = (double.parse(amount) * 100).toInt().toString();
     return calculatedAmount;
   }
-
-//   Future<void> sendPurchaseConfirmationEmail({
-//     required String userName,
-//     required String service,
-//     required String userMessage,
-//     required String userEmail,
-//     required String userSubject,
-//   }) async {
-//     final Email email = Email(
-//       body: '''
-// Dear $userName,
-
-// Thank you for your recent purchase! We are pleased to confirm that you have successfully purchased the following service:
-
-// ---
-
-// **Service Purchased:**
-// $service
-
-// **Message from You:**
-// "$userMessage"
-
-// ---
-
-// We appreciate your trust in our services and look forward to assisting you.
-
-// If you have any questions or need further assistance, please feel free to contact us.
-
-// ---
-
-// Best regards,
-
-// The [Your Company Name] Team
-// Email: $userEmail
-// Subject: $userSubject
-
-// ---
-
-// Note: This email serves as confirmation of your recent service purchase. Please keep this information for your records.
-// ''',
-//       subject: 'Confirmation of Your Service Purchase',
-//       recipients: [userEmail],
-//       cc: [],
-//       bcc: [],
-//       attachmentPaths: [],
-//       isHTML: false,
-//     );
-
-//     await FlutterEmailSender.send(email);
-//   }
-
-  // generatepdf() async {
-  //   final date = DateTime.now();
-  //   final dueDate = date.add(Duration(days: 7));
-  //   final invoice = Invoice(
-  //       supplier: Supplier(
-  //         name: widget.name,
-  //         address: 'Sarah Street 9, Beijing, China',
-  //         paymentInfo: 'https://paypal.me/sarahfieldzz',
-  //       ),
-  //       customer: Customer(
-  //         name: 'lawyer_name',
-  //         address: 'Apple Street, Cupertino, CA 95014',
-  //       ),
-  //       info: InvoiceInfo(
-  //         date: date,
-  //         dueDate: dueDate,
-  //         description: 'My description...',
-  //         number: '${DateTime.now().year}-9999',
-  //       ),
-  //       items: List.generate(
-  //         widget.extraOption.length,
-  //         (index) {
-  //           return InvoiceItem(
-  //             description: widget.extraOption[index],
-  //             date: DateTime.now(),
-  //             quantity: 1,
-  //             vat: 0.19,
-  //             unitPrice: 100,
-  //           );
-  //         },
-  //       ));
-
-  //   final pdfFile = await PdfInvoiceApi.generate(invoice);
-  //   await Printing.layoutPdf(
-  //     onLayout: (PdfPageFormat format) async => pdfFile.readAsBytes(),
-  //   );
-
-  //   PdfApi.openFile(pdfFile);
-  // }
 
   pdfgent() async {
     final date = DateTime.now();
@@ -478,63 +416,90 @@ class _PayNowPageState extends State<PayNowPage> {
                           TextStyle(color: TColor.secondaryText, fontSize: 12),
                     ),
                     const SizedBox(height: 8),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          widget.heading,
-                          style: TextStyle(
-                            color: TColor.primaryText,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.heading,
+                              style: TextStyle(
+                                color: TColor.primaryText,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.title,
+                              style: TextStyle(
+                                color: TColor.primaryText,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.subTitle,
+                              style: TextStyle(
+                                color: TColor.primaryText,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.option,
+                              style: TextStyle(
+                                color: TColor.primaryText,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            widget.extraOption.isNotEmpty
+                                ? Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: widget.extraOption
+                                        .map(
+                                          (e) => Text(
+                                            e,
+                                            style: TextStyle(
+                                              color: TColor.primaryText,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  )
+                                : const SizedBox.shrink(),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.title,
-                          style: TextStyle(
-                            color: TColor.primaryText,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.subTitle,
-                          style: TextStyle(
-                            color: TColor.primaryText,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.option,
-                          style: TextStyle(
-                            color: TColor.primaryText,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        widget.extraOption.isNotEmpty
-                            ? Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: widget.extraOption
-                                    .map(
-                                      (e) => Text(
-                                        e,
-                                        style: TextStyle(
-                                          color: TColor.primaryText,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w400,
+                        Column(
+                          children: [
+                            RepaintBoundary(
+                                          key: _qrkey,
+                                          child: QrImageView(
+                                            data: qrdata,
+                                            version: QrVersions.auto,
+                                            size: 100,
+                                            gapless: true,
+                                            errorStateBuilder: (ctx, err) {
+                                              return const Center(
+                                                child: Text(
+                                                  'Something went wrong!!!',
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              );
+                                            },
+                                          ),
                                         ),
-                                      ),
-                                    )
-                                    .toList(),
-                              )
-                            : const SizedBox.shrink(),
+                          ],
+                        ),
                       ],
                     ),
                   ],
@@ -576,63 +541,7 @@ class _PayNowPageState extends State<PayNowPage> {
                         ),
                       ],
                     ),
-                    // ListView.builder(
-                    //   physics: const NeverScrollableScrollPhysics(),
-                    //   padding: EdgeInsets.zero,
-                    //   shrinkWrap: true,
-                    //   itemCount: paymentArr.length,
-                    //   itemBuilder: (context, index) {
-                    //     var pObj = paymentArr[index] as Map? ?? {};
-                    //     return Container(
-                    //       margin: const EdgeInsets.symmetric(vertical: 8.0),
-                    //       padding: const EdgeInsets.symmetric(
-                    //         vertical: 8.0,
-                    //         horizontal: 15.0,
-                    //       ),
-                    //       decoration: BoxDecoration(
-                    //         color: TColor.textfield,
-                    //         borderRadius: BorderRadius.circular(5),
-                    //         border: Border.all(
-                    //           color: TColor.secondaryText.withOpacity(0.2),
-                    //         ),
-                    //       ),
-                    //       child: Row(
-                    //         children: [
-                    //           Image.asset(
-                    //             pObj["icon"].toString(),
-                    //             width: 50,
-                    //             height: 20,
-                    //             fit: BoxFit.contain,
-                    //           ),
-                    //           Expanded(
-                    //             child: Text(
-                    //               pObj["name"],
-                    //               style: TextStyle(
-                    //                 color: TColor.primaryText,
-                    //                 fontSize: 12,
-                    //                 fontWeight: FontWeight.w500,
-                    //               ),
-                    //             ),
-                    //           ),
-                    //           InkWell(
-                    //             onTap: () {
-                    //               setState(() {
-                    //                 selectMethod = index;
-                    //               });
-                    //             },
-                    //             child: Icon(
-                    //               selectMethod == index
-                    //                   ? Icons.radio_button_on
-                    //                   : Icons.radio_button_off,
-                    //               color: TColor.primary,
-                    //               size: 15,
-                    //             ),
-                    //           ),
-                    //         ],
-                    //       ),
-                    //     );
-                    //   },
-                    // ),
+                    
                   ],
                 ),
               ),
@@ -743,6 +652,7 @@ class _PayNowPageState extends State<PayNowPage> {
                         ),
                       ],
                     ),
+                    
                   ],
                 ),
               ),
@@ -757,28 +667,14 @@ class _PayNowPageState extends State<PayNowPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ElevatedButton(
-                    //   onPressed: () {
-                    //     Navigator.push(
-                    //       context,
-                    //       MaterialPageRoute(
-                    //         builder: (context) => InvoicePage(
-                    //             deliveryName: 'haroon',
-                    //             deliveryEmail: 'example@mail.com',
-                    //             deliveryAddress: 'xyz add',
-                    //             deliveryCost: fee.toString(),
-                    //             deliveryPhone: deliveryPhone),
-                    //       ),
-                    //     );
-                    //   },
-                    //   child: const Text("Generate Receipt"),
-                    // ),
+                    
                     const SizedBox(height: 20),
 
                     ElevatedButton(
                       onPressed: () {
-                        (isPaid)
-                            ? showToast(message: "you have already pay")
+                        // makePayment();
+                        (isPaid||isshowbutton)
+                            ? {showToast(message: "you have already pay"),_captureAndSavePng()}
                             : makePayment();
                         // generatepdf();
                       },
@@ -789,7 +685,7 @@ class _PayNowPageState extends State<PayNowPage> {
                         textStyle: const TextStyle(fontSize: 20),
                       ),
                       child: Text(
-                        isPaid ? "paid" : "Pay Now",
+                        isPaid ||isshowbutton? "paid" : "Pay Now",
                         style: TextStyle(color: Colors.white),
                       ),
                     ),

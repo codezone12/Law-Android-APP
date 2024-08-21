@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 // ignore: depend_on_referenced_packages
 import 'package:flutter_quill/flutter_quill.dart' hide Text;
@@ -18,6 +19,36 @@ class TextEditorScreen extends StatefulWidget {
 class _TextEditorScreenState extends State<TextEditorScreen> {
   final QuillController _controller = QuillController.basic();
   final FocusNode _focusNode = FocusNode();
+
+  Future<void> selectFiles() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      type: FileType.custom,
+      allowedExtensions: ['txt', 'md', 'json'], // Only allow text files
+    );
+
+    if (result != null) {
+      final file = File(result.files.single.path!);
+      try {
+        final fileContent = await file.readAsString();
+        setState(() {
+          _controller.document = Document()..insert(0, fileContent);
+          showToast(
+            message: "File Picked: ${result.files.single.name}",
+          );
+        });
+      } catch (e) {
+        showToast(
+          message: "Error reading file content: $e",
+          backgroundColor: Colors.red,
+        );
+      }
+    } else {
+      showToast(
+        message: "File selection canceled.",
+      );
+    }
+  }
 
   Future<void> _saveAndExportPDF() async {
     try {
@@ -41,7 +72,9 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
       showToast(message: 'PDF exported and saved to $path');
     } catch (e) {
       showToast(
-          message: 'Error exporting PDF: $e', backgroundColor: Colors.red);
+        message: 'Error exporting PDF: $e',
+        backgroundColor: Colors.red,
+      );
     }
   }
 
@@ -68,8 +101,9 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
       showToast(message: 'PDF generated and print dialog opened.');
     } catch (e) {
       showToast(
-          message: 'Error generating or printing PDF: $e',
-          backgroundColor: Colors.red);
+        message: 'Error generating or printing PDF: $e',
+        backgroundColor: Colors.red,
+      );
     }
   }
 
@@ -80,6 +114,12 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
         floatingActionButton: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            FloatingActionButton(
+              onPressed: selectFiles,
+              heroTag: 'uploadFileBtn',
+              child: const Icon(Icons.upload_file),
+            ),
+            const SizedBox(height: 10),
             FloatingActionButton(
               onPressed: saveAndPrintPDF,
               heroTag: 'printBtn',
