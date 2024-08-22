@@ -105,101 +105,69 @@ class _PayNowPageState extends State<PayNowPage> {
   }
   ///////////////////////////Stripe payment gate way ////////////////////////
 
-  Future<void> makePayment() async {
-    try {
-      paymentIntentData =
-          await createPaymentIntent('${widget.totalPrice}', 'USD');
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: paymentIntentData!['client_secret'],
-          merchantDisplayName: 'Example Merchant',
-          style: ThemeMode.system,
-        ),
-      );
-      displayPaymentSheet();
+Future<void> handlePaymentCreation() async {
+  paymentIntentData = await createPaymentIntent('${widget.totalPrice}', 'USD');
+  await Stripe.instance.initPaymentSheet(
+    paymentSheetParameters: SetupPaymentSheetParameters(
+      paymentIntentClientSecret: paymentIntentData!['client_secret'],
+      merchantDisplayName: 'Example Merchant',
+      style: ThemeMode.system,
+    ),
+  );
+  await displayPaymentSheet();
+}
 
-      await pdfgent();
-      
-     receipt =
-        await storeToFirebase(pdfFile, "receipts/${widget.docRef.id}");
-        setState(() {
-          qrdata=receipt!;
-        });
-      await  _captureAndSavePng();
-  await  updateOrderStatus(widget.docRef.id,receipt!,link);
-    
+Future<void> generateAndSavePDFReceipt() async {
+  final pdfFile = await pdfgent();
+  receipt = await storeToFirebase(pdfFile, "receipts/${widget.docRef.id}");
+  setState(() {
+    qrdata = receipt!;
+  });
+}
 
-   await sendEmailUsingEmailjs(
-        isadmin: true,
+Future<void> generateAndUploadQRCode() async {
+        // final dir = await getApplicationDocumentsDirectory();
+ 
+link=  await _captureAndSavePng();
+  // link = await storeToFirebase(File('${dir.path}/qrcode.png'), "receiptQr/${widget.docRef.id}");
+}
 
-        ///sending to admin
-        name: widget.name,
-        email: widget.email,
-        subject: widget.subject,
-        message: widget.message,
-        pdf: receipt!,qrcode:link);
+Future<void> sendEmails() async {
+  await sendEmailUsingEmailjs(
+    isadmin: true,
+    name: widget.name,
+    email: widget.email,
+    subject: widget.subject,
+    message: widget.message,
+    pdf: receipt!,
+    qrcode: link,
+  );
 
-   await sendEmailUsingEmailjs(
-        isadmin: false,
+  await sendEmailUsingEmailjs(
+    isadmin: false,
+    name: widget.name,
+    email: widget.email,
+    subject: widget.subject,
+    message: widget.message,
+    pdf: receipt!,
+    qrcode: link,
+  );
+}
 
-        ///sending to customer
-        name: widget.name,
-        email: widget.email,
-        subject: widget.subject,
-        message: widget.message,
-        pdf: receipt!,qrcode:link);
+void handlePaymentError(Exception e) {
+  print('Error in makePayment: $e');
+  Fluttertoast.showToast(
+    msg: "Error in making payment",
+    toastLength: Toast.LENGTH_SHORT,
+    gravity: ToastGravity.BOTTOM,
+    backgroundColor: Colors.red,
+    textColor: Colors.white,
+    fontSize: 16.0,
+  );
+}
 
-  
-
-    } catch (e) {
-      print('Error in makePayment: $e');
-      Fluttertoast.showToast(
-        msg: "Error in making payment",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
-    }
-  }
-
-  Future<void> _captureAndSavePng() async {
-    try{
-      RenderRepaintBoundary boundary = _qrkey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      var image = await boundary.toImage(pixelRatio: 3.0);
-
-      //Drawing White Background because Qr Code is Black
-      final whitePaint = Paint()..color = Colors.white;
-      final recorder = PictureRecorder();
-      final canvas = Canvas(recorder,Rect.fromLTWH(0,0,image.width.toDouble(),image.height.toDouble()));
-      canvas.drawRect(Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()), whitePaint);
-      canvas.drawImage(image, Offset.zero, Paint());
-      final picture = recorder.endRecording();
-      final img = await picture.toImage(image.width, image.height);
-      ByteData? byteData = await img.toByteData(format: ImageByteFormat.png);
-      Uint8List pngBytes = byteData!.buffer.asUint8List();
-
-      final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/qrcode.png');
-
-    await file.writeAsBytes(pngBytes);
-
-      
-  link =
-   await storeToFirebase(file, "receiptQr/${widget.docRef.id}");
-      
-
-    }catch(e){
-      if(!mounted)return;
-      const snackBar = SnackBar(content: Text('Something went wrong!!!'));
-      ScaffoldMessenger.of(context).showSnackBar(snackBar);
-    }
-  }
-
-
-  Future<void> displayPaymentSheet() async {
-    try {
+Future<void> displayPaymentSheet() async {
+  try {
     await Stripe.instance.presentPaymentSheet();
     setState(() {
       paymentIntentData = null;
@@ -212,130 +180,165 @@ class _PayNowPageState extends State<PayNowPage> {
       textColor: Colors.white,
       fontSize: 16.0,
     );
-    
-    } catch (e) {
-      print('Exception: $e');
-      Fluttertoast.showToast(
-        msg: "Payment failed",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
-    }
+  } catch (e) {
+    print('Exception: $e');
+    Fluttertoast.showToast(
+      msg: "Payment failed",
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: Colors.red,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
   }
+}
 
-  Future<Map<String, dynamic>> createPaymentIntent(
-      String amount, String currency) async {
-    try {
-      Map<String, dynamic> body = {
-        'amount': calculateAmount(amount),
-        'currency': currency,
-        'payment_method_types[]': 'card',
-      };
-      var response = await http.post(
-        Uri.parse('https://api.stripe.com/v1/payment_intents'),
-        headers: {
-          'Authorization':
-              'Bearer sk_test_51PkMrnCSoqn7lOOtG9Gk5XjxHOXdAWgpmOfOPGUTLaws4hpWvED4S6plQ2uworUZGXyPVEKKxbXpCLcWO48YqQTO00gHeJUKnF',
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: body,
-      );
-      return json.decode(response.body);
-    } catch (err) {
-      print('Error creating payment intent: $err');
-      throw err;
-    }
+Future<Map<String, dynamic>> createPaymentIntent(String amount, String currency) async {
+  try {
+    Map<String, dynamic> body = {
+      'amount': calculateAmount(amount),
+      'currency': currency,
+      'payment_method_types[]': 'card',
+    };
+    var response = await http.post(
+      Uri.parse('https://api.stripe.com/v1/payment_intents'),
+      headers: {
+        'Authorization': 'Bearer sk_test_51PkMrnCSoqn7lOOtG9Gk5XjxHOXdAWgpmOfOPGUTLaws4hpWvED4S6plQ2uworUZGXyPVEKKxbXpCLcWO48YqQTO00gHeJUKnF',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body,
+    );
+    return json.decode(response.body);
+  } catch (err) {
+    print('Error creating payment intent: $err');
+    throw err;
   }
+}
 
-  Future<void> updateOrderStatus(String reference,String url,qrcodelink) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('orders') // The name of your collection
-          .doc(
-              reference) // The specific document ID (reference) you want to update
-          .update({
-        'status': 'completed',
-        'receipturl':url ,// The field you want to update
-        'r_qrcode_link':qrcodelink
-      });
-
-      print('Order status updated successfully.');
-    } catch (e) {
-      print('Failed to update order status: $e');
-    }
-  }
-
-  String calculateAmount(String amount) {
-    final calculatedAmount = (double.parse(amount) * 100).toInt().toString();
-    return calculatedAmount;
-  }
-
-  pdfgent() async {
-    final date = DateTime.now();
-    final dueDate = date.add(Duration(days: 7));
-
-    final invoice = Invoice(
-        supplier: Supplier(
-          name: 'Sarah Field',
-          address: 'Sarah Street 9, Beijing, China',
-          paymentInfo: 'https://paypal.me/sarahfieldzz',
-        ),
-        customer: Customer(
-          name: 'Apple Inc.',
-          address: 'Apple Street, Cupertino, CA 95014',
-        ),
-        info: InvoiceInfo(
-          date: date,
-          dueDate: dueDate,
-          description: 'My description...',
-          number: '${DateTime.now().year}-9999',
-        ),
-        items: List.generate(
-          widget.extraOption.length,
-          (index) {
-            return InvoiceItem(
-              description: widget.extraOption[index],
-              date: DateTime.now(),
-              quantity: 1,
-              vat: 0.19,
-              unitPrice: 100,
-            );
-          },
-        ));
-
-    final pdFFile = await PdfInvoiceApi.generate(invoice);
-    setState(() {
-      pdfFile = pdFFile;
+Future<void> updateOrderStatus(String reference, String url) async {
+  try {
+    await FirebaseFirestore.instance
+        .collection('orders')
+        .doc(reference)
+        .update({
+      'status': 'completed',
+      'receipturl': url,
     });
-    // await Printing.layoutPdf(
-    //     onLayout: (PdfPageFormat format) async => pdfFile.readAsBytes());
-    // await OpenFile.open(pdfFile.path);
-    setState(() {
-      isshowbutton = true;
-    });
-
-    showToast(message: "Now you can save and share the Receipt");
-    await OpenFile.open(pdfFile.path);
-    fetchOrderStatus();
+    print('Order status updated successfully.');
+  } catch (e) {
+    print('Failed to update order status: $e');
   }
+}
 
-  Future<void> fetchOrderStatus() async {
-    try {
-      DocumentSnapshot orderSnapshot = await widget.docRef.get();
-      String status = orderSnapshot.get('status');
+String calculateAmount(String amount) {
+  final calculatedAmount = (double.parse(amount) * 100).toInt().toString();
+  return calculatedAmount;
+}
 
-      setState(() {
-        isPaid = status == 'completed';
-      });
-      print('Error fetching order status:');
-    } catch (e) {
-      print('Error fetching order status: $e');
+Future<File> pdfgent() async {
+  final date = DateTime.now();
+  final dueDate = date.add(Duration(days: 7));
+
+  final invoice = Invoice(
+    supplier: Supplier(
+      name: 'Sarah Field',
+      address: 'Sarah Street 9, Beijing, China',
+      paymentInfo: 'https://paypal.me/sarahfieldzz',
+    ),
+    customer: Customer(
+      name: 'Apple Inc.',
+      address: 'Apple Street, Cupertino, CA 95014',
+    ),
+    info: InvoiceInfo(
+      date: date,
+      dueDate: dueDate,
+      description: 'My description...',
+      number: '${DateTime.now().year}-9999',
+    ),
+    items: List.generate(
+      widget.extraOption.length,
+      (index) {
+        return InvoiceItem(
+          description: widget.extraOption[index],
+          date: DateTime.now(),
+          quantity: 1,
+          vat: 0.19,
+          unitPrice: 100,
+        );
+      },
+    ),
+  );
+
+  final pdf = await PdfInvoiceApi.generate(invoice);
+  setState(() {
+    pdfFile = pdf;
+    isshowbutton = true;
+  });
+
+  showToast(message: "Now you can save and share the Receipt");
+  await OpenFile.open(pdfFile.path);
+  return pdfFile;
+}
+
+Future<String?> _captureAndSavePng() async {
+  try {
+    RenderRepaintBoundary boundary = _qrkey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+    var image = await boundary.toImage(pixelRatio: 3.0);
+
+    final whitePaint = Paint()..color = Colors.white;
+    final recorder = PictureRecorder();
+    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()));
+    canvas.drawRect(Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()), whitePaint);
+    canvas.drawImage(image, Offset.zero, Paint());
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(image.width, image.height);
+    ByteData? byteData = await img.toByteData(format: ImageByteFormat.png);
+    Uint8List pngBytes = byteData!.buffer.asUint8List();
+
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/qrcode.png');
+    await file.writeAsBytes(pngBytes);
+
+    return await storeToFirebase(file, "receiptQr/${widget.docRef.id}");
+  } catch (e) {
+    if (!mounted) {
+      return null;
     }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Something went wrong!!!')));
   }
+}
 
+Future<void> fetchOrderStatus() async {
+  try {
+    DocumentSnapshot orderSnapshot = await widget.docRef.get();
+    String status = orderSnapshot.get('status');
+
+    setState(() {
+      isPaid = status == 'completed';
+    });
+  } catch (e) {
+    print('Error fetching order status: $e');
+  }
+}
+
+Future<void> makePayment() async {
+  try {
+    await handlePaymentCreation();
+    await generateAndSavePDFReceipt();
+    await updateOrderStatus(widget.docRef.id, receipt!);
+    await generateAndUploadQRCode();
+    ///////////  qrcode upload//////////
+     await FirebaseFirestore.instance
+        .collection('orders')
+        .doc(widget.docRef.id)
+        .update({
+      
+      'r_qrcode_link': link!});
+    await sendEmails();
+  } catch (e) {
+    showToast(message: e.toString());
+  }
+}
   @override
   Widget build(BuildContext context) {
     double fee = 2; // Example delivery cost
@@ -674,7 +677,7 @@ class _PayNowPageState extends State<PayNowPage> {
                       onPressed: () {
                         // makePayment();
                         (isPaid||isshowbutton)
-                            ? {showToast(message: "you have already pay"),_captureAndSavePng()}
+                            ? {showToast(message: "you have already pay"),generateAndUploadQRCode()}
                             : makePayment();
                         // generatepdf();
                       },
