@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:law_app/Home/home_page.dart';
+import 'package:law_app/Home/home_page.dart'; 
+import 'package:connectivity_plus/connectivity_plus.dart';
+
 import 'package:law_app/auth/authProviders/githubauth.dart';
 import 'package:law_app/auth/authProviders/googleAuth.dart';
 import 'package:law_app/auth/authProviders/linkedinAuth.dart';
@@ -14,76 +18,109 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> 
+ {
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();  
 
-  bool loading = false;
+
+  bool loading  
+ = false;
   bool _isPasswordVisible = false;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   bool validateAndSave() {
     final form = _formKey.currentState;
-    if (form?.validate() ?? false) {
+    if (form?.validate()  
+ ?? false) {
       form?.save();
       return true;
     }
     return false;
   }
+Future<void> loginWithEmailPassword() async {
+  
+  // Check network connectivity
+  final List<ConnectivityResult> connectivityResult = await Connectivity().checkConnectivity();
+  if (await connectivityResult.first == ConnectivityResult.none) {
+    // No internet connection, show a toast message
+    showToast(message: "Network error. Please check your internet connection.");
+    return;
+  }
 
-  Future<void> loginWithEmailPassword() async {
-    if (validateAndSave()) {
-      setState(() {
-        loading = true;
-      });
-      try {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
+  // Proceed with login if network is connected
+  if (validateAndSave()) {
+    setState(() {
+      loading = true;
+    });
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
 
-        // Check if email is verified
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null && user.emailVerified) {
-          // Show success toast and navigate to home page
-          showToast(message: "Login Successful! Welcome");
-
-          // ignore: use_build_context_synchronously
-          Navigator.pushReplacement(context,
-              MaterialPageRoute(builder: (context) => const HomePage()));
-        } else {
-          // Show message to verify email
-          showToast(message: 'Please verify your email to log in.');
-
-          // Optionally, resend verification email
-          try {
-            await user?.sendEmailVerification();
-          } catch (e) {
-            // Handle errors specifically from sendEmailVerification
-            showToast(message: 'Failed to send verification email.');
-          }
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && user.emailVerified) {
+        showToast(message: "Login Successful! Welcome");
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => const HomePage()));
+      } else {
+        showToast(message: 'Please verify your email to log in.');
+        try {
+          await user?.sendEmailVerification();
+        } catch (e) {
+          showToast(message: 'Failed to send verification email.');
         }
-      } on FirebaseAuthException catch (e) {
-        String errorMessage = 'An error occurred. Please try again.';
-        if (e.code == 'user-not-found') {
-          errorMessage = 'No user found for that email.';
-        } else if (e.code == 'wrong-password') {
-          errorMessage = 'Wrong password provided for that user.';
-        }
-
-        showToast(message: errorMessage);
-      } catch (e) {
-        showToast(
-            message:
-                'An unexpected error occurred. Please check credentials and try again.');
-      } finally {
-        setState(() {
-          loading = false;
-        });
       }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'An error occurred. Please try again.';
+      switch (e.code) {
+        case "ERROR_EMAIL_ALREADY_IN_USE":
+        case "account-exists-with-different-credential":
+        case "email-already-in-use":
+          errorMessage = "Email already used. Go to login page.";
+          break;
+        case "ERROR_WRONG_PASSWORD":
+        case "wrong-password":
+          errorMessage = "Wrong email/password combination.";
+          break;
+        case "ERROR_USER_NOT_FOUND":
+        case "user-not-found":
+          errorMessage = "No user found with this email.";
+          break;
+        case "ERROR_USER_DISABLED":
+        case "user-disabled":
+          errorMessage = "User disabled.";
+          break;
+        case "ERROR_TOO_MANY_REQUESTS":
+        case "operation-not-allowed":
+          errorMessage = "Too many requests to log into this account.";
+          break;
+        case "ERROR_OPERATION_NOT_ALLOWED":
+        case "operation-not-allowed":
+          errorMessage = "Server error, please try again later.";
+          break;
+        case "ERROR_INVALID_EMAIL":
+        case "invalid-email":
+          errorMessage = "Email address is invalid.";
+          break;
+        default:
+          errorMessage = "Email address or Password  is invalid";
+      }
+      showToast(message: errorMessage);
+    } on SocketException catch (e) {
+      showToast(message: "Network error. Please check your internet connection.");
+    } catch (e) {
+      showToast(message: 'An unexpected error occurred. Please check credentials and try again.');
+    } finally {
+      setState(() {
+        loading = false;
+      });
     }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -271,22 +308,25 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(
                         width: 20,
                       ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const LinkedInDemoPage()),
-                          );
-                        },
-                        child: Image.asset('assets/images/linkedin.png',
-                            height: 50, width: 50),
+                      // GestureDetector(
+                      //   onTap: () {
+                      //     Navigator.push(
+                      //       context,
+                      //       MaterialPageRoute(
+                      //           builder: (context) => const LinkedInDemoPage()),
+                      //     );
+                      //   },
+                      //   child: Image.asset('assets/images/linkedin.png',
+                      //       height: 50, width: 50),
+                      // ),
+                       const SizedBox(
+                        width: 20,
                       ),
                       GestureDetector(
                         onTap: () async {
                           try {
                             UserCredential userCredential =
-                                await signin_withgithub();
+                               await signInWithTwitter();
                             // if (context.mounted) {
                             //   Navigator.push(
                             //       context,
@@ -305,8 +345,8 @@ class _LoginPageState extends State<LoginPage> {
                             showToast(message: e.toString());
                           }
                         },
-                        child: Image.asset('assets/images/github.png',
-                            height: 50, width: 50),
+                        child: Image.asset('assets/images/x.jpg',
+                            height: 50, width: 40),
                       ),
                     ],
                   ),

@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:law_app/Orders/user_orders_page.dart';
+import 'package:law_app/auth/auth_page.dart';
 import 'package:law_app/components/common/round_button.dart';
 import 'package:law_app/components/common/round_textfield.dart';
 import 'package:law_app/components/toaster.dart';
@@ -122,9 +123,15 @@ class _ProfileViewState extends State<ProfileView> {
                   icon: Icon(Icons.receipt),
                 ),
                 TextButton.icon(
-                  onPressed: () async {
-                    await FirebaseAuth.instance.signOut();
-                  },
+                  onPressed:()async  {
+    await FirebaseAuth.instance.signOut();
+    await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => AuthPage()));
+     
+  }
+                  ,
                   icon: Icon(
                     Icons.logout,
                     size: 20,

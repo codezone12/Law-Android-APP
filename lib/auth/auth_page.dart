@@ -27,7 +27,9 @@ class AuthPage extends StatelessWidget {
                 return const EmailVerificationPage(); // Make sure to create this widget
               } else {
                 // Email is verified, go to home page
-                WidgetsBinding.instance.addPostFrameCallback((_) {});
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  showToast(message: "Login successful!");
+                });
                 return const HomePage();
               }
             } else {
@@ -39,9 +41,30 @@ class AuthPage extends StatelessWidget {
             }
           } else if (snapshot.hasError) {
             // Handle error state
+            FirebaseAuthException? authException =
+                snapshot.error as FirebaseAuthException?;
+            String errorMessage = "An error occurred. Please try again.";
+
+            if (authException != null) {
+              switch (authException.code) {
+                case 'network-request-failed':
+                  errorMessage = "Network issue. Please check your connection.";
+                  break;
+                case 'wrong-password':
+                  errorMessage = "Incorrect credentials. Please try again.";
+                  break;
+                case 'user-not-found':
+                  errorMessage = "User not found. Please sign up.";
+                  break;
+                default:
+                  errorMessage = authException.message ?? errorMessage;
+              }
+            }
+
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              showToast(message: "An error occurred. Please try again.");
+              showToast(message: errorMessage);
             });
+
             return const Center(child: Text('An error occurred.'));
           } else {
             // User is not logged in, show login page

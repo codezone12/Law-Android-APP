@@ -3,10 +3,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_slider_drawer/flutter_slider_drawer.dart';
+import 'package:googleapis/servicecontrol/v2.dart';
 import 'package:law_app/Google%20meetup/google_meetup.dart';
 import 'package:law_app/Hire%20Quickly/hire_quickly.dart';
 import 'package:law_app/Hire%20Services/hire_services.dart';
 import 'package:law_app/Orders/user_orders_page.dart';
+import 'package:law_app/auth/auth_page.dart';
 import 'package:law_app/text_editor/text%20_editor.dart';
 
 import '../profille/profile.dart';
@@ -32,8 +34,13 @@ class HomePageState extends State<HomePage>
   String selectedMenuItem = '';
 
   // sign user out method
-  void signUserOut() async {
+  void signUserOut()async  {
     await FirebaseAuth.instance.signOut();
+    await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => AuthPage()));
+     
   }
 
   void logoutDialog(context) {
@@ -52,8 +59,7 @@ class HomePageState extends State<HomePage>
               ),
               TextButton(
                 onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                },
+ signUserOut();                },
                 child: const Text("Logout"),
               ),
             ],
@@ -153,7 +159,7 @@ class _SliderView extends StatelessWidget {
   final Function(String)? onItemClick;
   final String selectedMenuItem;
 
-  final User? user = FirebaseAuth.instance.currentUser!;
+  final User? user = FirebaseAuth.instance.currentUser;
 
   _SliderView({Key? key, this.onItemClick, required this.selectedMenuItem})
       : super(key: key);
