@@ -84,7 +84,7 @@ class _ProfileViewState extends State<ProfileView> {
           });
         }
 
-        showToast(message: "Profile Updated Successfully");
+        showToast(message: "Profile    Updated    Successfully");
       }
     } catch (e) {
       showToast(message: "Failed to Update Profile: $e");
