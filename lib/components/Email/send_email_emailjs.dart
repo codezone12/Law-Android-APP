@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:emailjs/emailjs.dart' as emailjs;
 import 'package:law_app/components/toaster.dart'; // Import the Fluttertoast package or your custom `showToast` function
@@ -31,7 +30,7 @@ Future<bool> sendEmailUsingEmailjs({
       'user_message': message,
       'service': services ?? '',
      
-      'file_link': pdf ?? '', // Include the file name if available
+      'file_link': pdf, // Include the file name if available
       'qr_code_url':qrcode 
     };
 
@@ -46,7 +45,7 @@ Future<bool> sendEmailUsingEmailjs({
     showToast(
       message: isadmin
           ? "Email sent successfully to the lawyer!"
-          : "Email sent successfully to your Email ${email}",
+          : "Email sent successfully to your Email $email",
     );
     return true;
   } catch (error) {

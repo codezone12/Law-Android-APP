@@ -20,11 +20,7 @@ class _OrderPageState extends State<OrderPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton.filled(
-            onPressed: () {
-              print("Back button pressed");
-            },
-            icon: const Icon(Icons.arrow_back)),
+        
         elevation: 0,
         backgroundColor: Colors.transparent,
         title: const Text(
@@ -81,6 +77,7 @@ class _OrderPageState extends State<OrderPage> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => PayNowPage(
+                          isfromorder: true,
                           docRef: order.reference,
                           name: orderData["name"],
                           email: orderData["email"],

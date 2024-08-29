@@ -1,27 +1,48 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-import 'package:twitter_login/twitter_login.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:flutter/material.dart';
+// import 'package:law_app/components/toaster.dart';
+// import 'package:pdf/widgets.dart';
+// import 'package:twitter_login/twitter_login.dart';
 
+//     signInWithTwitter(Context) async {
+//     final twitterLogin = TwitterLogin(
+//       apiKey: 'MpmkZ1RUknIHBwnTeH5sDrxCC',
+//       apiSecretKey: 'IKNA3v7yKOoJyi4ryWYSfmQ6jKWsMcDFrmvwzf2KCLzBhqa4FY',
+//       redirectURI: 'flutter-twitter-practice://',
+//     );
 
-   signInWithTwitter() async {
+//     // try {
+//       final authResult = await twitterLogin.login();
 
-    // Create a TwitterLogin instance
-    final twitterLogin = new TwitterLogin(
-        apiKey: 'CP1ck9xhkSPRI3fpZbssh20Ay',
-        apiSecretKey: 'ExovdLXEkaDktrjuUEnXl0tzBZNBe30oz4qJhpBVlMVwdpJ3KA',
-        redirectURI: 'flutter-twitter-practice://'
-    );
+//       if (authResult.status == TwitterLoginStatus.loggedIn) {
+//         final twitterAuthCredential = TwitterAuthProvider.credential(
+//           accessToken: authResult.authToken!,
+//           secret: authResult.authTokenSecret!,
+//         );
 
-    // Trigger the sign-in flow
-    await twitterLogin.login().then((value) async {
-
-      final twitterAuthCredential = TwitterAuthProvider.credential(
-        accessToken: value.authToken!,
-        secret: value.authTokenSecret!,
-      );
-
-     return await FirebaseAuth.instance.signInWithCredential(twitterAuthCredential);
-
-    });
-
-  }
+//         final userCredential = await FirebaseAuth.instance
+//             .signInWithCredential(twitterAuthCredential);
+//     final user =userCredential.user;
+//  if (user != null) {
+//         // Ensure values are not null before saving
+//         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+//           'name': user.displayName ?? '',
+//           'email': user.email ?? '',
+//           'phone': user.phoneNumber ?? '',
+//           'profilepic': user.photoURL ?? '',
+//         });}
+//         // if (userCredential.user != null) {
+        
+//         //   Navigator.of(context).pushReplacement(
+//         //       MaterialPageRoute(builder: (context) => const HomePage()));
+//         // }
+//       } else if (authResult.status == TwitterLoginStatus.cancelledByUser) {
+//         showToast(message: "Twitter login cancelled by user.");
+//       } else if (authResult.status == TwitterLoginStatus.error) {
+//         showToast(message: "Twitter login error: ${authResult.errorMessage}");
+//       }
+//     // } catch (e) {
+//     //   showToast(message: "Error during Twitter login: $e");
+//     // }
+//   }

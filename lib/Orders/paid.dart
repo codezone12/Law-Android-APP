@@ -1,9 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PdfViewerScreen extends StatefulWidget {
   PdfViewerScreen({super.key, required this.receipturl});
@@ -22,14 +22,16 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     super.initState();
     _pdfPath = _loadPdf();
   }
-
+ late final pdffile;
   Future<String> _loadPdf() async {
     final response = await http.get(Uri.parse(widget.receipturl));
     if (response.statusCode == 200) {
       final bytes = response.bodyBytes;
-      final dir = await getTemporaryDirectory();
+     var  dir = await getTemporaryDirectory();
       final file = File('${dir.path}/temp.pdf');
-      await file.writeAsBytes(bytes);
+      
+     await file.writeAsBytes(bytes);
+     pdffile=file.path;
       return file.path;
     } else {
       throw Exception('Failed to load PDF');
@@ -38,7 +40,14 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Scaffold( floatingActionButton: FloatingActionButton(
+              onPressed: ()async{
+                    await Share.shareXFiles([XFile(pdffile)], text: 'Here is your document');
+
+              },
+              heroTag: 'uploadFileBtn',
+              child: const Icon(Icons.upload_file),
+            ),
       appBar: AppBar(
         title: Text('PDF Viewer'),
       ),
