@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:law_app/Orders/user_orders_page.dart';
 import 'package:law_app/auth/auth_page.dart';
-import 'package:law_app/components/common/ipinfo.dart';
 import 'package:law_app/components/common/round_button.dart';
 import 'package:law_app/components/common/timer.dart';
 import 'package:law_app/components/toaster.dart';
@@ -77,19 +76,21 @@ class _ProfileViewState extends State<ProfileView> {
             });
           }
 
-          showToast(message: "Profile Updated Successfully");
-        }
-      } catch (e) {
-        showToast(message: "Failed to Update Profile: $e");
-      } finally {
-        setState(() {
-          loading = false;
-        });
+        showToast(message: "Profile Updated Successfully");
       }
-    } else {
-      showToast(message: "Please correct the errors in the form.");
+    } catch (e) {
+      showToast(message: "Failed to Update Profile: $e");
+    } finally {
+      setState(() {
+        loading = false;
+        
+      });
     }
+  } else {
+    showToast(message: "Please correct the errors in the form.");
   }
+}
+
 
   @override
   void initState() {
